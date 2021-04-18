@@ -6,7 +6,7 @@ Proof of Concept (code example, use at own risk, no support): as an BIM 360 Acco
 ## Installation: 
 
 First download and install this github code example: https://github.com/Autodesk-Forge/forge-viewhubs/tree/eb7cb963e75ac371b443e2850ef1e228b7506dfb
-Now replace the files from this repositry where you find them in the original example..
+Now replace the files from this repositry where you find them in the original example. Note that the result will alter the original sample and take away previous features.
 
 ## Options:
 
