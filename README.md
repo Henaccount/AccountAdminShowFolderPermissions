@@ -6,7 +6,7 @@ Installation:
 First download and install this github code example: https://github.com/Autodesk-Forge/forge-viewhubs/tree/eb7cb963e75ac371b443e2850ef1e228b7506dfb
 Now replace the files from this repositry where you find them in the original example..
 
-How to use:
+How to use (see formatted version in the tool):
 
               Options:<br /><br />
               <b>userId:</b> you get this from the account admin user section, just grab the Id from the URL after selection a certain user: https://admin.b360.autodesk.com/admin/ae8c2a83-81e1-438a-8a59-4540e84779c0/users/<b>483069d9-f87d-40a0-9230-bc35c6870423</b> All folder permissions connected to this user will be displayed (by email, by company, by roles)<br />
