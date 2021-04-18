@@ -1,7 +1,7 @@
 # AccountAdminShowFolderPermissions
 Proof of Concept (code example, use at own risk, no support): as an BIM 360 Account Admin, show folder permissions for users, companies or roles
 
-<img src="https://github.com/Henaccount/AccountAdminShowFolderPermissions/POCaccountadminfolderpermissions.png">
+<img src="https://github.com/Henaccount/AccountAdminShowFolderPermissions/blob/master/POCaccountadminfolderpermissions.png">
 
 ## Installation: 
 
