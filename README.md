@@ -1,6 +1,8 @@
 # AccountAdminShowFolderPermissions
 Proof of Concept (code example, use at own risk, no support): as an BIM 360 Account Admin, show folder permissions for users, companies or roles
 
+<img src="https://github.com/Henaccount/AccountAdminShowFolderPermissions/POCaccountadminfolderpermissions.png">
+
 ## Installation: 
 
 First download and install this github code example: https://github.com/Autodesk-Forge/forge-viewhubs/tree/eb7cb963e75ac371b443e2850ef1e228b7506dfb
