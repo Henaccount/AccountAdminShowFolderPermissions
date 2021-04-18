@@ -27,17 +27,24 @@ using System.Net;
 using Microsoft.AspNetCore.Http;
 using System.IO;
 using Microsoft.AspNetCore.Hosting;
+using System.Diagnostics;
+using RestSharp;
+using System.Linq;
+using System.Text;
 
 namespace forgeSample.Controllers
 {
     public class DataManagementController : ControllerBase
     {
-        private IHostingEnvironment _env;
+        /*mb private IHostingEnvironment _env;
         public DataManagementController(IHostingEnvironment env)
         {
             _env = env;
-        }
+        } mb*/
+        public DataManagementController()
+        {
 
+        }
         /// <summary>
         /// Credentials on this request
         /// </summary>
@@ -48,7 +55,7 @@ namespace forgeSample.Controllers
         /// </summary>
         [HttpGet]
         [Route("api/forge/datamanagement")]
-        public async Task<IList<jsTreeNode>> GetTreeNodeAsync(string id)
+        public async Task<IList<jsTreeNode>> GetTreeNodeAsync(string id, string qtype, string qtext)
         {
             Credentials = await Credentials.FromSessionAsync(base.Request.Cookies, Response.Cookies);
             if (Credentials == null) { return null; }
@@ -68,7 +75,7 @@ namespace forgeSample.Controllers
                     case "projects": // projects node selected/expanded, show root folder contents
                         return await GetProjectContents(id);
                     case "folders": // folders node selected/expanded, show folder contents
-                        return await GetFolderContents(id);
+                        return await GetFolderContents(id, qtype, qtext);
                     case "items":
                         return await GetItemVersions(id);
                 }
@@ -102,6 +109,9 @@ namespace forgeSample.Controllers
                         nodeType = "bim360Hubs";
                         break;
                 }
+
+                //mb: only bim 360
+                if (!nodeType.Equals("bim360Hubs")) continue;
 
                 // create a treenode with the values
                 jsTreeNode hubNode = new jsTreeNode(hubInfo.Value.links.self.href, hubInfo.Value.attributes.name, nodeType, !(nodeType == "unsupported"));
@@ -171,7 +181,7 @@ namespace forgeSample.Controllers
             return nodes;
         }
 
-        private async Task<IList<jsTreeNode>> GetFolderContents(string href)
+        private async Task<IList<jsTreeNode>> GetFolderContents(string href, string qtype, string qtext)
         {
             IList<jsTreeNode> nodes = new List<jsTreeNode>();
 
@@ -205,6 +215,8 @@ namespace forgeSample.Controllers
                 // if the type is items:autodesk.bim360:Document we need some manipulation...
                 if (extension.Equals("items:autodesk.bim360:Document"))
                 {
+                    //mb
+                    continue;
                     // as this is a DOCUMENT, lets interate the FOLDER INCLUDED to get the name (known issue)
                     foreach (KeyValuePair<string, dynamic> includedItem in folderIncluded)
                     {
@@ -238,15 +250,176 @@ namespace forgeSample.Controllers
                         }
                     }
                 }
-                else
+                else if (extension.Equals("folders:autodesk.bim360:Folder"))
                 {
+                    //mb: , string qtype, string qtext
+                    string legend = "";
+                    string permissions = "";
+                    string userId = "";
+                    string[] useremails = null;
+                    string[] companies = null;
+                    string[] roles = null;
+
+                    if (qtype.Equals("userId"))
+                    {
+                        //get user company and roles
+                        userId = qtext.Trim();
+                        string utoken = Credentials.TokenInternal;
+                        var uclient = new RestClient("https://developer.api.autodesk.com/bim360/admin/v1/projects/" + projectId.Substring(2) + "/users/" + userId);
+                        uclient.Timeout = -1;
+                        var urequest = new RestRequest(Method.GET);
+                        urequest.AddHeader("Content-Type", "application/json");
+                        urequest.AddHeader("Accept", "application/json");
+                        urequest.AddHeader("Authorization", "Bearer " + utoken);
+                        IRestResponse uresponse = uclient.Execute(urequest);
+                        JObject ures = JObject.Parse(uresponse.Content);
+                        useremails = new string[] { ures["email"].ToString() };
+                        companies = new string[] { ures["companyId"].ToString() };
+                        List<string> lroles = new List<string>();
+                        foreach (var item in ures["roleIds"].Children())
+                        {
+                            lroles.Add(item.ToString());
+                        }
+                        roles = lroles.ToArray();
+                    }
+                    else if (qtype.Equals("by_emails_only"))
+                    {
+                        useremails = qtext.Split(new Char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    }
+                    else if (qtype.Equals("companies"))
+                    {
+                        companies = qtext.Split(new Char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    }
+                    else if (qtype.Equals("roles"))
+                    {
+                        roles = qtext.Split(new Char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    }
+
+                    string token = Credentials.TokenInternal;
+                    string folderUrn = folderContentItem.Value.links.self.href.ToString();
+                    folderUrn = folderUrn.Split("/folders/")[1].Split("/contents?")[0].Replace(":", "%3A");
+                    var client = new RestClient("https://developer.api.autodesk.com/bim360/docs/v1/projects/" + projectId.Substring(2) + "/folders/" + folderUrn + "/permissions");
+                    client.Timeout = -1;
+                    var request = new RestRequest(Method.GET);
+                    request.AddHeader("Content-Type", "application/vnd.api+json");
+                    request.AddHeader("Accept", "application/vnd.api+json");
+                    request.AddHeader("Authorization", "Bearer " + token);
+
+                    try
+                    {
+                        bool validresponse = false;
+                        int countvr = 0;
+                        int maxvr = 3;
+                        JArray res = null;
+                        while (!validresponse)
+                        {
+                            ++countvr;
+                            IRestResponse response = client.Execute(request);
+                            //Console.WriteLine(response.Content);
+                            try
+                            {
+                                res = JArray.Parse(response.Content);
+                                validresponse = true;
+                            }
+                            catch
+                            {
+                                if (countvr >= maxvr) break;
+                                System.Threading.Thread.Sleep(25000);
+                            }
+                        }
+
+                        
+
+                        foreach (var item in res.Children())
+                        {
+                            dynamic data = JObject.Parse(item.ToString());
+                            if (data["subjectType"].ToString().Equals("USER") && useremails != null)
+                            {
+                                int count = 0;
+                                foreach (string useremail in useremails)
+                                {
+                                    ++count;
+                                    if (data["email"].ToString().Equals(useremail.Trim()))
+                                    {
+                                        permissions += " " + GetPermissionString(data, count, useremail);
+                                    }
+                                }
+                            }
+                            else if (data["subjectType"].ToString().Equals("COMPANY") && companies != null)
+                            {
+                                int count = 3;
+                                foreach (string company in companies) 
+                                {
+                                    ++count;
+                                    if (data["name"].ToString().Equals(company.Trim()) || data["subjectId"].ToString().Equals(company.Trim()))
+                                    {
+                                        permissions += " " + GetPermissionString(data, count, "C:" + data["name"].ToString());
+                                    }
+                                }
+                            }
+                            else if (data["subjectType"].ToString().Equals("ROLE") && roles != null)
+                            {
+                                int count = 6;
+                                foreach (string role in roles)
+                                {
+                                    ++count;
+                                    if (data["name"].ToString().Equals(role.Trim()) || data["subjectId"].ToString().Equals(role.Trim()))
+                                    {
+                                        permissions += " " + GetPermissionString(data, count, "R:" + data["name"].ToString());
+                                    }
+                                }
+                            }
+
+                        }
+
+                    }
+                    catch (Exception e) { permissions = e.Message + "###" + e.StackTrace; }
+
+
                     // non-Plans folder items
                     //if (folderContentItem.Value.attributes.hidden == true) continue;
-                    nodes.Add(new jsTreeNode(folderContentItem.Value.links.self.href, folderContentItem.Value.attributes.displayName, (string)folderContentItem.Value.type, true));
+                    nodes.Add(new jsTreeNode(folderContentItem.Value.links.self.href, folderContentItem.Value.attributes.displayName + permissions, (string)folderContentItem.Value.type, true));
+
                 }
             }
-
+            //nodes.Add(new jsTreeNode("", "long long text", "folders", false));
             return nodes;
+        }
+
+        public static string GetPermissionString(dynamic data, int num, string owner)
+        {
+            /*from: https://stackoverflow.com/questions/16999604/convert-string-to-hex-string-in-c-sharp
+            byte[] ba = Encoding.Default.GetBytes(owner);
+            var hexString = BitConverter.ToString(ba);
+            hexString = hexString.Replace("-", "").Substring(0,6);*/
+            
+            string permissions = "";
+            permissions += "<span class=\"s" + num + "\">" + owner + " : ";
+            int sumactions = 0;
+            int actions = 0, inheritactions = 0;
+
+            actions = GetCodedPermissions(data["actions"].ToString());
+
+            inheritactions = GetCodedPermissions(data["inheritActions"].ToString()) * 2;
+
+            sumactions = actions + inheritactions;
+            string displayedpermissions = sumactions.ToString().PadLeft(5, '0').Replace("3", "2");
+            permissions += displayedpermissions;
+            permissions += "</span>";
+            return permissions;
+        }
+
+        public static int GetCodedPermissions(string a)
+        {
+            int codedpermissions = 0;
+
+            if (a.Contains("VIEW") && a.Contains("COLLABORATE")) codedpermissions += 10000;
+            if (a.Contains("DOWNLOAD")) codedpermissions += 1000;
+            if (a.Contains("PUBLISH")) codedpermissions += 100;
+            if (a.Contains("EDIT")) codedpermissions += 10;
+            if (a.Contains("CONTROL")) codedpermissions += 1;
+
+            return codedpermissions;
         }
 
         private string GetName(DynamicDictionaryItems folderIncluded, KeyValuePair<string, dynamic> folderContentItem)
@@ -321,20 +494,25 @@ namespace forgeSample.Controllers
         /// <returns></returns>
         [HttpPost]
         [Route("api/forge/datamanagement")]
-        public async Task<dynamic> UploadObject([FromForm]UploadFile input)
+        //public async Task<dynamic> UploadObject([FromForm]UploadFile input)
+        public async Task<dynamic> UploadObject(Stream input)//mb
         {
+
             // get the uploaded file and save on the server
-            var fileSavePath = Path.Combine(_env.ContentRootPath, input.fileToUpload.FileName);
+            /*mb var fileSavePath = Path.Combine(_env.ContentRootPath, input.fileToUpload.FileName);
             using (var stream = new FileStream(fileSavePath, FileMode.Create))
-                await input.fileToUpload.CopyToAsync(stream);
+                await input.fileToUpload.CopyToAsync(stream); mb*/
 
             // user credentials
             Credentials = await Credentials.FromSessionAsync(base.Request.Cookies, Response.Cookies);
 
             // extract projectId and folderId from folderHref
-            string[] hrefParams = input.folderHref.Split("/");
+            /*mb string[] hrefParams = input.folderHref.Split("/");
             string projectId = hrefParams[hrefParams.Length - 3];
-            string folderId = hrefParams[hrefParams.Length - 1];
+            string folderId = hrefParams[hrefParams.Length - 1]; mb*/
+            string projectId = "3be23c1c-1383-440a-b395-ac5933f797a1";
+            string folderId = "urn:adsk.wipprod:fs.folder:co.-w2D5-voTQiB-6-aowONzg";
+            string fileName = "result.ifc";
 
             // prepare storage
             ProjectsApi projectApi = new ProjectsApi();
@@ -343,7 +521,8 @@ namespace forgeSample.Controllers
             CreateStorageDataRelationshipsTarget storageTarget = new CreateStorageDataRelationshipsTarget(storageRelData);
             CreateStorageDataRelationships storageRel = new CreateStorageDataRelationships(storageTarget);
             BaseAttributesExtensionObject attributes = new BaseAttributesExtensionObject(string.Empty, string.Empty, new JsonApiLink(string.Empty), null);
-            CreateStorageDataAttributes storageAtt = new CreateStorageDataAttributes(input.fileToUpload.FileName, attributes);
+            //mb CreateStorageDataAttributes storageAtt = new CreateStorageDataAttributes(input.fileToUpload.FileName, attributes);
+            CreateStorageDataAttributes storageAtt = new CreateStorageDataAttributes(fileName, attributes);
             CreateStorageData storageData = new CreateStorageData(CreateStorageData.TypeEnum.Objects, storageAtt, storageRel);
             CreateStorage storage = new CreateStorage(new JsonApiVersionJsonapi(JsonApiVersionJsonapi.VersionEnum._0), storageData);
             dynamic storageCreated = await projectApi.PostStorageAsync(projectId, storage);
@@ -358,12 +537,13 @@ namespace forgeSample.Controllers
             objects.Configuration.AccessToken = Credentials.TokenInternal;
 
             // get file size
-            long fileSize = (new FileInfo(fileSavePath)).Length;
+            //mb long fileSize = (new FileInfo(fileSavePath)).Length;
+            long fileSize = 10;
 
             // decide if upload direct or resumable (by chunks)
             if (fileSize > UPLOAD_CHUNK_SIZE * 1024 * 1024) // upload in chunks
             {
-                long chunkSize = 2 * 1024 * 1024; // 2 Mb
+                /*mb long chunkSize = 2 * 1024 * 1024; // 2 Mb
                 long numberOfChunks = (long)Math.Round((double)(fileSize / chunkSize)) + 1;
 
                 long start = 0;
@@ -392,19 +572,20 @@ namespace forgeSample.Controllers
                         chunkSize = ((start + chunkSize > fileSize) ? fileSize - start - 1 : chunkSize);
                         end = start + chunkSize;
                     }
-                }
+                } mb*/
             }
             else // upload in a single call
             {
-                using (StreamReader streamReader = new StreamReader(fileSavePath))
-                {
-                    await objects.UploadObjectAsync(bucketKey, objectName, (int)streamReader.BaseStream.Length, streamReader.BaseStream, "application/octet-stream");
-                }
+                /*mb using (StreamReader streamReader = new StreamReader(fileSavePath))
+                 {
+                     await objects.UploadObjectAsync(bucketKey, objectName, (int)streamReader.BaseStream.Length, streamReader.BaseStream, "application/octet-stream");
+                 } mb*/
+                await objects.UploadObjectAsync(bucketKey, objectName, (int)input.Length, input, "application/octet-stream");
             }
 
             // cleanup
-            string fileName = input.fileToUpload.FileName;
-            System.IO.File.Delete(fileSavePath);
+            /*mb string fileName = input.fileToUpload.FileName;
+            System.IO.File.Delete(fileSavePath); mb*/
 
             // check if file already exists...
             FoldersApi folderApi = new FoldersApi();

@@ -13,9 +13,9 @@ body {
 }
 
 #userHubs {
-  overflow: auto;
-  width: 100%;
-  height: calc(100vh - 150px);
+    overflow: visible;/* mb: org: auto */
+    width: 100%;
+    height: calc(100vh - 150px);
 }
 
 #forgeViewer {
@@ -45,4 +45,48 @@ body {
 #googlemap {
   width: 100%;
   height: calc(100% - 70px);
+}
+
+span.s1 {
+    background-color: #FFFF00;
+}
+
+span.s2 {
+    background-color: #00FF00;
+}
+
+span.s3 {
+    background-color: #00FFFF;
+}
+
+span.s4 {
+    background-color: #FF00FF;
+}
+
+span.s5 {
+    background-color: #FFD700;
+}
+
+span.s6 {
+    background-color: #F0E68C;
+}
+
+span.s7 {
+    background-color: #FFDAB9;
+}
+
+span.s8 {
+    background-color: #AFEEEE;
+}
+
+span.s9 {
+    background-color: #AFEEE0;
+}
+
+span.s10 {
+    background-color: #AFEEEA;
+}
+
+span.s11 {
+    background-color: #AFEEEF;
 }

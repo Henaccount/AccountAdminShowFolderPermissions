@@ -24,7 +24,7 @@ $(document).ready(function () {
       // yes, it is signed in...
       $('#signOut').show();
       $('#refreshHubs').show();
-
+      $('#forgeViewer').show();
       // prepare sign out
       $('#signOut').click(function () {
         $('#hiddenFrame').on('load', function (event) {
@@ -36,13 +36,15 @@ $(document).ready(function () {
       })
 
       // and refresh button
-      $('#refreshHubs').click(function () {
-        $('#userHubs').jstree(true).refresh();
+        $('#refreshHubs').click(function () {
+            prepareUserHubsTree();
+            $('#userHubs').jstree(true).refresh();
       });
 
       // finally:
-      prepareUserHubsTree();
       showUser();
+      prepareUserHubsTree();
+        
     }
   });
 
@@ -92,7 +94,7 @@ $(document).ready(function () {
 });
 
 function prepareUserHubsTree() {
-  var haveBIM360Hub = false;
+    var haveBIM360Hub = false;
   $('#userHubs').jstree({
     'core': {
       'themes': { "icons": true },
@@ -102,8 +104,8 @@ function prepareUserHubsTree() {
         "dataType": "json",
         'cache': false,
         'data': function (node) {
-          $('#userHubs').jstree(true).toggle_node(node);
-          return { "id": node.id };
+            $('#userHubs').jstree(true).toggle_node(node);
+            return { "id": node.id, "qtype": $('#qtype').val(), "qtext": $('#qtext').val() };
         },
         "success": function (nodes) {
           nodes.forEach(function (n) {
@@ -167,22 +169,26 @@ function prepareUserHubsTree() {
       }
       else return a1.text > b1.text ? 1 : -1;
     },
-    "plugins": ["types", "state", "sort", "contextmenu"],
-    "contextmenu": { items: autodeskCustomMenu },
-    "state": { "key": "autodeskHubs" }// key restore tree state
+    "plugins": ["types", "sort"]//,mb: (no restore, contextmenu) "state", "contextmenu"
+    //"contextmenu": { items: autodeskCustomMenu },
+      //"state": { "key": "autodeskHubs" } key restore tree state, mb: (no restore)
   }).bind("activate_node.jstree", function (evt, data) {
-    if (data != null && data.node != null && (data.node.type == 'versions' || data.node.type == 'bim360documents')) {
-      var urn;
-      var viewableId
-      if (data.node.id.indexOf('|') > -1) {
-        urn = data.node.id.split('|')[1];
-        viewableId = data.node.id.split('|')[2];
-        launchViewer(urn, viewableId);
+      
+      if (data != null && data.node != null && (data.node.type == 'versions' || data.node.type == 'bim360documents')) {
+          var urn;
+          var viewableId
+          if (data.node.id.indexOf('|') > -1) {
+              urn = data.node.id.split('|')[1];
+              viewableId = data.node.id.split('|')[2];
+              launchViewer(urn, viewableId);
+          }
+          else {
+              launchViewer(data.node.id);
+          }
+      } else if (data.node.type == 'bim360projects' || data.node.type == 'folders') {
+          //console.log("trying to expand all");
+            data.instance.open_all(data.node);
       }
-      else {
-        launchViewer(data.node.id);
-      }
-    }
   });
 }
 
@@ -231,11 +237,14 @@ function uploadFile() {
 }
 
 function showUser() {
-  jQuery.ajax({
+  /*jQuery.ajax({
     url: '/api/forge/user/profile',
     success: function (profile) {
       var img = '<img src="' + profile.picture + '" height="30px">';
       $('#userInfo').html(img + profile.name);
     }
-  });
+  });*/
+    var qhtml = "<select id=\"qtype\" size=\"1\"><option selected>userId</option><option>by_emails_only</option><option>companies</option><option>roles</option></select>";
+    qhtml += " <input type=text id=\"qtext\" size=\"30\">";
+    $('#userInfo').html(qhtml);
 }

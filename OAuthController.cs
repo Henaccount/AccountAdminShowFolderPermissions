@@ -79,7 +79,7 @@ namespace forgeSample.Controllers
               Credentials.GetAppSetting("FORGE_CLIENT_ID"),
               oAuthConstants.CODE,
               Credentials.GetAppSetting("FORGE_CALLBACK_URL"),
-              new Scope[] { Scope.DataRead, Scope.DataCreate, Scope.DataWrite, Scope.ViewablesRead });
+              new Scope[] { Scope.DataRead, Scope.DataCreate, Scope.DataWrite, Scope.ViewablesRead, Scope.AccountRead });
 
             return oauthUrl;
         }
@@ -178,7 +178,7 @@ namespace forgeSample.Controllers
 
             dynamic credentialInternal = await oauth.RefreshtokenAsync(
               GetAppSetting("FORGE_CLIENT_ID"), GetAppSetting("FORGE_CLIENT_SECRET"),
-              "refresh_token", RefreshToken, new Scope[] { Scope.DataRead, Scope.DataCreate, Scope.DataWrite, Scope.ViewablesRead });
+              "refresh_token", RefreshToken, new Scope[] { Scope.DataRead, Scope.DataCreate, Scope.DataWrite, Scope.ViewablesRead, Scope.AccountRead });
 
             dynamic credentialPublic = await oauth.RefreshtokenAsync(
               GetAppSetting("FORGE_CLIENT_ID"), GetAppSetting("FORGE_CLIENT_SECRET"),
