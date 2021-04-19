@@ -10,7 +10,7 @@ Now replace the files from this repositry where you find them in the original ex
 
 ## Options:
 
-**userId:** you get this from the account admin user section, just grab the Id from the URL after selection a certain user: https://admin.b360.autodesk.com/admin/ae8c2a83-81e1-438a-8a59-4540e84779c0/users/**483069d9-f87d-40a0-9230-bc35c6870423** All folder permissions connected to this user will be displayed (by email, by company, by roles)
+**userId:** you get this from the account admin user section, just grab the Id from the URL after selection a certain user: https://admin.b360.autodesk.com/admin/ae8c2a83-81e1-438a-8a59-4540e84779c0/users/ **483069d9-f87d-40a0-9230-bc35c6870423** All folder permissions connected to this user will be displayed (by email, by company, by roles)
 
 **by_emails_only, companies, roles:** by_emails_only means explicit permissions given by email adress. You can type several email, companies or roles seperated by comma. Like this you can compare permissions given by email, company or role.
 
